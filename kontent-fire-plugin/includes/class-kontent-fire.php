@@ -34,23 +34,42 @@ class Kontent_Fire {
         $this->define_admin_hooks();
         $this->define_public_hooks();
         $this->setup_cron_jobs();
-        $this->init_blog_promoter();
+
+        // Initialize blog promoter after WordPress is fully loaded
+        add_action('init', array($this, 'init_blog_promoter'));
     }
 
     /**
      * Initialize blog promoter for automatic social media promotion
+     *
+     * This runs on the 'init' hook after WordPress is fully loaded
      */
-    private function init_blog_promoter() {
-        // Auto-promote blogs when published
-        $blog_promoter = new Kontent_Fire_Blog_Promoter();
+    public function init_blog_promoter() {
+        // Only run on admin or cron
+        if (!is_admin() && !wp_doing_cron()) {
+            return;
+        }
 
-        // Initialize auto-blogger
-        $auto_blogger = new Kontent_Fire_Auto_Blogger();
+        // Only initialize if classes are available
+        if (!class_exists('Kontent_Fire_Blog_Promoter') || !class_exists('Kontent_Fire_Auto_Blogger')) {
+            return;
+        }
 
-        // Schedule automatic blog generation if enabled
-        if (get_option('kontent_fire_auto_blog_enabled', 'no') === 'yes') {
-            $frequency = get_option('kontent_fire_auto_blog_frequency', 'weekly');
-            $auto_blogger->schedule_auto_generation($frequency);
+        try {
+            // Initialize blog promoter (sets up hooks for auto-promotion)
+            new Kontent_Fire_Blog_Promoter();
+
+            // Schedule automatic blog generation if enabled
+            if (get_option('kontent_fire_auto_blog_enabled', 'no') === 'yes') {
+                $auto_blogger = new Kontent_Fire_Auto_Blogger();
+                $frequency = get_option('kontent_fire_auto_blog_frequency', 'weekly');
+                if (method_exists($auto_blogger, 'schedule_auto_generation')) {
+                    $auto_blogger->schedule_auto_generation($frequency);
+                }
+            }
+        } catch (Exception $e) {
+            // Log error but don't break plugin activation
+            error_log('Kontent Fire: Error initializing blog features - ' . $e->getMessage());
         }
     }
 
