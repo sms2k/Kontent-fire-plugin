@@ -11,9 +11,9 @@
 class Kontent_Fire_Credit_Manager {
 
     /**
-     * License server URL
+     * License server URL (Kontent Fire Portal)
      */
-    private $license_server = 'https://your-license-server.com/api/';
+    private $license_server = 'https://app.kontentfire.com/api/';
 
     /**
      * Credit costs for different operations
@@ -79,10 +79,10 @@ class Kontent_Fire_Credit_Manager {
             return $cached;
         }
 
-        $response = wp_remote_post($this->license_server . 'credits/balance', array(
-            'body' => array(
-                'license_key' => $license_key,
-                'site_url' => get_site_url()
+        $response = wp_remote_get($this->license_server . 'credits/balance', array(
+            'headers' => array(
+                'X-License-Key' => $license_key,
+                'Content-Type' => 'application/json',
             ),
             'timeout' => 15
         ));
@@ -193,13 +193,14 @@ class Kontent_Fire_Credit_Manager {
         }
 
         $response = wp_remote_post($this->license_server . 'credits/deduct', array(
-            'body' => array(
-                'license_key' => $license_key,
-                'site_url' => get_site_url(),
+            'body' => json_encode(array(
                 'operation' => $operation,
                 'quantity' => $quantity,
-                'cost' => $cost,
-                'metadata' => json_encode($metadata)
+                'metadata' => $metadata
+            )),
+            'headers' => array(
+                'X-License-Key' => $license_key,
+                'Content-Type' => 'application/json',
             ),
             'timeout' => 15
         ));
@@ -426,7 +427,6 @@ class Kontent_Fire_Credit_Manager {
      * @return string Upgrade URL
      */
     public function get_upgrade_url() {
-        $license_key = get_option('kontent_fire_license_key');
-        return 'https://your-license-server.com/upgrade?license=' . urlencode($license_key);
+        return 'https://app.kontentfire.com/dashboard/billing';
     }
 }

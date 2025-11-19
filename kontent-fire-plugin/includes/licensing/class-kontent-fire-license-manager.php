@@ -11,9 +11,9 @@
 class Kontent_Fire_License_Manager {
 
     /**
-     * License server URL (replace with your actual server)
+     * License server URL (Kontent Fire Portal)
      */
-    private $license_server = 'https://licensing.kynex.io/api/v1';
+    private $license_server = 'https://app.kontentfire.com/api';
 
     /**
      * Product ID
@@ -83,12 +83,13 @@ class Kontent_Fire_License_Manager {
      * @return array
      */
     private function validate_with_server($license_key) {
-        $response = wp_remote_post($this->license_server . '/validate', array(
-            'body' => array(
+        $response = wp_remote_post($this->license_server . '/license/validate', array(
+            'body' => json_encode(array(
                 'license_key' => $license_key,
-                'product_id' => $this->product_id,
-                'site_url' => get_site_url(),
-                'version' => KONTENT_FIRE_VERSION
+                'site_url' => get_site_url()
+            )),
+            'headers' => array(
+                'Content-Type' => 'application/json',
             ),
             'timeout' => 15
         ));
@@ -186,12 +187,14 @@ class Kontent_Fire_License_Manager {
             );
         }
 
-        $response = wp_remote_post($this->license_server . '/activate', array(
-            'body' => array(
+        $response = wp_remote_post($this->license_server . '/license/activate', array(
+            'body' => json_encode(array(
                 'license_key' => $license_key,
-                'product_id' => $this->product_id,
                 'site_url' => get_site_url(),
                 'site_name' => get_bloginfo('name')
+            )),
+            'headers' => array(
+                'Content-Type' => 'application/json',
             ),
             'timeout' => 15
         ));

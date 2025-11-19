@@ -11,14 +11,14 @@
 class Kontent_Fire_Claude_API {
 
     /**
-     * API endpoint
+     * API endpoint (portal proxy)
      */
-    private $api_endpoint = 'https://api.anthropic.com/v1/messages';
+    private $api_endpoint = 'https://app.kontentfire.com/api/proxy/claude';
 
     /**
-     * API key
+     * License key
      */
-    private $api_key;
+    private $license_key;
 
     /**
      * Model version
@@ -29,7 +29,7 @@ class Kontent_Fire_Claude_API {
      * Constructor
      */
     public function __construct() {
-        $this->api_key = get_option('kontent_fire_claude_api_key');
+        $this->license_key = get_option('kontent_fire_license_key');
     }
 
     /**
@@ -40,10 +40,10 @@ class Kontent_Fire_Claude_API {
      * @return array
      */
     public function generate_content($prompt, $options = array()) {
-        if (empty($this->api_key)) {
+        if (empty($this->license_key)) {
             return array(
                 'success' => false,
-                'message' => 'Claude API key not configured.'
+                'message' => 'License key not configured.'
             );
         }
 
@@ -71,8 +71,7 @@ class Kontent_Fire_Claude_API {
         $response = wp_remote_post($this->api_endpoint, array(
             'headers' => array(
                 'Content-Type' => 'application/json',
-                'x-api-key' => $this->api_key,
-                'anthropic-version' => '2023-06-01'
+                'X-License-Key' => $this->license_key,
             ),
             'body' => json_encode($body),
             'timeout' => 60
@@ -92,15 +91,23 @@ class Kontent_Fire_Claude_API {
         if ($response_code !== 200) {
             return array(
                 'success' => false,
-                'message' => 'API error: ' . ($data['error']['message'] ?? 'Unknown error'),
+                'message' => 'API error: ' . ($data['error'] ?? 'Unknown error'),
                 'code' => $response_code
             );
         }
 
+        // Handle portal proxy response format
+        if (isset($data['success']) && $data['success']) {
+            return array(
+                'success' => true,
+                'content' => $data['data']['content'][0]['text'] ?? '',
+                'usage' => $data['usage'] ?? array()
+            );
+        }
+
         return array(
-            'success' => true,
-            'content' => $data['content'][0]['text'] ?? '',
-            'usage' => $data['usage'] ?? array()
+            'success' => false,
+            'message' => $data['error'] ?? 'Unknown error'
         );
     }
 
