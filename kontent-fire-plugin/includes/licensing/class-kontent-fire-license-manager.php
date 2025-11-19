@@ -176,6 +176,16 @@ class Kontent_Fire_License_Manager {
      * @return array
      */
     public function activate_license($license_key) {
+        // Check if it's a test license key first
+        if ($this->is_test_key($license_key)) {
+            $result = $this->activate_test_license($license_key);
+            return array(
+                'success' => $result['valid'],
+                'message' => $result['message'],
+                'data' => $result['data'] ?? array()
+            );
+        }
+
         $response = wp_remote_post($this->license_server . '/activate', array(
             'body' => array(
                 'license_key' => $license_key,
