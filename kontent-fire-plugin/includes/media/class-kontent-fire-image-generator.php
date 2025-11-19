@@ -49,17 +49,18 @@ class Kontent_Fire_Image_Generator {
             );
         }
 
-        $api = $options['api'] ?? 'openai';
+        // Default to Imagen 4 from Google Gemini
+        $api = $options['api'] ?? 'gemini';
 
-        if ($api === 'openai') {
-            return $this->generate_with_openai($prompt, $options);
-        } elseif ($api === 'gemini') {
+        if ($api === 'gemini' || $api === 'imagen4') {
             return $this->generate_with_gemini($prompt, $options);
+        } elseif ($api === 'openai' || $api === 'dalle') {
+            return $this->generate_with_openai($prompt, $options);
         }
 
         return array(
             'success' => false,
-            'message' => 'Invalid API specified.'
+            'message' => 'Invalid API specified. Use "gemini" for Imagen 4 or "openai" for DALL-E.'
         );
     }
 
@@ -83,7 +84,7 @@ class Kontent_Fire_Image_Generator {
     }
 
     /**
-     * Generate with Gemini
+     * Generate with Gemini Imagen 4
      *
      * @param string $prompt
      * @param array $options
@@ -91,6 +92,25 @@ class Kontent_Fire_Image_Generator {
      */
     private function generate_with_gemini($prompt, $options) {
         return $this->gemini_api->generate_image($prompt, $options);
+    }
+
+    /**
+     * Edit image using Nana Banana (Gemini 2.5)
+     *
+     * @param string $image_path
+     * @param string $edit_prompt
+     * @param array $options
+     * @return array
+     */
+    public function edit_with_nana_banana($image_path, $edit_prompt, $options = array()) {
+        if (!$this->license_manager->has_feature('image_generation')) {
+            return array(
+                'success' => false,
+                'message' => 'Image editing is not available in your plan.'
+            );
+        }
+
+        return $this->gemini_api->edit_image_nana_banana($image_path, $edit_prompt, $options);
     }
 
     /**

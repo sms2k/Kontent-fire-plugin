@@ -47,6 +47,33 @@ class Kontent_Fire_Video_Generator {
     }
 
     /**
+     * Generate video using Veo 3
+     *
+     * @param string $prompt
+     * @param array $options
+     * @return array
+     */
+    public function generate_video_veo3($prompt, $options = array()) {
+        if (!$this->license_manager->has_feature('video_generation')) {
+            return array(
+                'success' => false,
+                'message' => 'Video generation is not available in your plan.'
+            );
+        }
+
+        $defaults = array(
+            'duration' => '5',  // seconds
+            'aspectRatio' => '16:9',
+            'fps' => 24,
+            'resolution' => '1080p'
+        );
+
+        $options = wp_parse_args($options, $defaults);
+
+        return $this->gemini_api->generate_video_veo3($prompt, $options);
+    }
+
+    /**
      * Create video from images
      *
      * @param array $images

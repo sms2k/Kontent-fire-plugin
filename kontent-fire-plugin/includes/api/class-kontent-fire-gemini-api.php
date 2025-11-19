@@ -26,6 +26,16 @@ class Kontent_Fire_Gemini_API {
     private $model = 'gemini-pro';
 
     /**
+     * Imagen 4 endpoint
+     */
+    private $imagen_endpoint = 'https://us-central1-aiplatform.googleapis.com/v1/projects/{project}/locations/us-central1/publishers/google/models/imagen-4.0:predict';
+
+    /**
+     * Veo 3 endpoint
+     */
+    private $veo_endpoint = 'https://us-central1-aiplatform.googleapis.com/v1/projects/{project}/locations/us-central1/publishers/google/models/veo-3.0:predict';
+
+    /**
      * Constructor
      */
     public function __construct() {
@@ -114,7 +124,7 @@ class Kontent_Fire_Gemini_API {
     }
 
     /**
-     * Generate image using Imagen (via Gemini)
+     * Generate image using Imagen 4
      *
      * @param string $prompt
      * @param array $options
@@ -132,13 +142,17 @@ class Kontent_Fire_Gemini_API {
             'numberOfImages' => 1,
             'aspectRatio' => '1:1',
             'negativePrompt' => '',
-            'safetyFilterLevel' => 'block_some'
+            'safetyFilterLevel' => 'block_some',
+            'outputMimeType' => 'image/png',
+            'personGeneration' => 'allow_adult'
         );
 
         $options = wp_parse_args($options, $defaults);
 
-        // Note: This uses the Imagen API which is part of the Vertex AI suite
-        // You may need to adjust the endpoint based on your Google Cloud setup
+        // Imagen 4 uses Vertex AI endpoint
+        $project = get_option('kontent_fire_google_project_id', 'your-project-id');
+        $endpoint = str_replace('{project}', $project, $this->imagen_endpoint);
+
         $body = array(
             'instances' => array(
                 array(
@@ -149,17 +163,307 @@ class Kontent_Fire_Gemini_API {
                 'sampleCount' => $options['numberOfImages'],
                 'aspectRatio' => $options['aspectRatio'],
                 'negativePrompt' => $options['negativePrompt'],
-                'safetyFilterLevel' => $options['safetyFilterLevel']
+                'safetyFilterLevel' => $options['safetyFilterLevel'],
+                'outputOptions' => array(
+                    'mimeType' => $options['outputMimeType']
+                ),
+                'personGeneration' => $options['personGeneration']
             )
         );
 
-        // For now, return a structured response that can be implemented when Imagen API is available
+        $response = wp_remote_post($endpoint, array(
+            'headers' => array(
+                'Authorization' => 'Bearer ' . $this->api_key,
+                'Content-Type' => 'application/json'
+            ),
+            'body' => json_encode($body),
+            'timeout' => 120
+        ));
+
+        if (is_wp_error($response)) {
+            return array(
+                'success' => false,
+                'message' => 'Imagen 4 API request failed: ' . $response->get_error_message()
+            );
+        }
+
+        $response_code = wp_remote_retrieve_response_code($response);
+        $response_body = wp_remote_retrieve_body($response);
+        $data = json_decode($response_body, true);
+
+        if ($response_code !== 200) {
+            return array(
+                'success' => false,
+                'message' => 'Imagen 4 API error: ' . ($data['error']['message'] ?? 'Unknown error'),
+                'code' => $response_code
+            );
+        }
+
+        // Download and save images
+        $image_urls = array();
+        if (isset($data['predictions'])) {
+            foreach ($data['predictions'] as $prediction) {
+                if (isset($prediction['bytesBase64Encoded'])) {
+                    $image_data = base64_decode($prediction['bytesBase64Encoded']);
+                    $saved = $this->save_imagen_to_media($image_data, $prompt);
+                    if ($saved) {
+                        $image_urls[] = $saved;
+                    }
+                }
+            }
+        }
+
         return array(
             'success' => true,
-            'message' => 'Image generation queued. Imagen integration requires Google Cloud Vertex AI setup.',
-            'prompt' => $prompt,
-            'options' => $options
+            'images' => $image_urls,
+            'model' => 'Imagen 4',
+            'data' => $data
         );
+    }
+
+    /**
+     * Edit image using Gemini 2.5 "Nana Banana"
+     *
+     * @param string $image_path
+     * @param string $edit_prompt
+     * @param array $options
+     * @return array
+     */
+    public function edit_image_nana_banana($image_path, $edit_prompt, $options = array()) {
+        if (empty($this->api_key)) {
+            return array(
+                'success' => false,
+                'message' => 'Gemini API key not configured.'
+            );
+        }
+
+        // Read and encode image
+        $image_data = file_get_contents($image_path);
+        if ($image_data === false) {
+            return array(
+                'success' => false,
+                'message' => 'Could not read image file.'
+            );
+        }
+
+        $base64_image = base64_encode($image_data);
+        $mime_type = mime_content_type($image_path);
+
+        $defaults = array(
+            'temperature' => 0.4,
+            'maxOutputTokens' => 8192
+        );
+
+        $options = wp_parse_args($options, $defaults);
+
+        // Use Gemini 2.5 Flash with vision for image editing
+        $body = array(
+            'contents' => array(
+                array(
+                    'parts' => array(
+                        array(
+                            'inline_data' => array(
+                                'mime_type' => $mime_type,
+                                'data' => $base64_image
+                            )
+                        ),
+                        array('text' => "Edit this image as follows: {$edit_prompt}\n\nProvide detailed editing instructions that can be applied to transform the image.")
+                    )
+                )
+            ),
+            'generationConfig' => array(
+                'temperature' => $options['temperature'],
+                'maxOutputTokens' => $options['maxOutputTokens']
+            )
+        );
+
+        $url = $this->api_endpoint . '/models/gemini-2.5-flash:generateContent?key=' . $this->api_key;
+
+        $response = wp_remote_post($url, array(
+            'headers' => array(
+                'Content-Type' => 'application/json'
+            ),
+            'body' => json_encode($body),
+            'timeout' => 90
+        ));
+
+        if (is_wp_error($response)) {
+            return array(
+                'success' => false,
+                'message' => 'Nana Banana API request failed: ' . $response->get_error_message()
+            );
+        }
+
+        $response_body = wp_remote_retrieve_body($response);
+        $data = json_decode($response_body, true);
+
+        $editing_instructions = '';
+        if (isset($data['candidates'][0]['content']['parts'][0]['text'])) {
+            $editing_instructions = $data['candidates'][0]['content']['parts'][0]['text'];
+        }
+
+        return array(
+            'success' => true,
+            'model' => 'Gemini 2.5 Flash (Nana Banana)',
+            'editing_instructions' => $editing_instructions,
+            'original_prompt' => $edit_prompt,
+            'data' => $data
+        );
+    }
+
+    /**
+     * Generate video using Veo 3
+     *
+     * @param string $prompt
+     * @param array $options
+     * @return array
+     */
+    public function generate_video_veo3($prompt, $options = array()) {
+        if (empty($this->api_key)) {
+            return array(
+                'success' => false,
+                'message' => 'Gemini API key not configured.'
+            );
+        }
+
+        $defaults = array(
+            'duration' => '5',  // seconds
+            'aspectRatio' => '16:9',
+            'fps' => 24,
+            'resolution' => '1080p'
+        );
+
+        $options = wp_parse_args($options, $defaults);
+
+        // Veo 3 uses Vertex AI endpoint
+        $project = get_option('kontent_fire_google_project_id', 'your-project-id');
+        $endpoint = str_replace('{project}', $project, $this->veo_endpoint);
+
+        $body = array(
+            'instances' => array(
+                array(
+                    'prompt' => $prompt
+                )
+            ),
+            'parameters' => array(
+                'duration' => $options['duration'],
+                'aspectRatio' => $options['aspectRatio'],
+                'fps' => $options['fps'],
+                'resolution' => $options['resolution']
+            )
+        );
+
+        $response = wp_remote_post($endpoint, array(
+            'headers' => array(
+                'Authorization' => 'Bearer ' . $this->api_key,
+                'Content-Type' => 'application/json'
+            ),
+            'body' => json_encode($body),
+            'timeout' => 180  // 3 minutes for video generation
+        ));
+
+        if (is_wp_error($response)) {
+            return array(
+                'success' => false,
+                'message' => 'Veo 3 API request failed: ' . $response->get_error_message()
+            );
+        }
+
+        $response_code = wp_remote_retrieve_response_code($response);
+        $response_body = wp_remote_retrieve_body($response);
+        $data = json_decode($response_body, true);
+
+        if ($response_code !== 200) {
+            return array(
+                'success' => false,
+                'message' => 'Veo 3 API error: ' . ($data['error']['message'] ?? 'Unknown error'),
+                'code' => $response_code
+            );
+        }
+
+        // Process video data
+        $video_urls = array();
+        if (isset($data['predictions'])) {
+            foreach ($data['predictions'] as $prediction) {
+                if (isset($prediction['bytesBase64Encoded'])) {
+                    $video_data = base64_decode($prediction['bytesBase64Encoded']);
+                    $saved = $this->save_video_to_media($video_data, $prompt);
+                    if ($saved) {
+                        $video_urls[] = $saved;
+                    }
+                }
+            }
+        }
+
+        return array(
+            'success' => true,
+            'videos' => $video_urls,
+            'model' => 'Veo 3',
+            'data' => $data
+        );
+    }
+
+    /**
+     * Save Imagen image to WordPress media library
+     *
+     * @param string $image_data
+     * @param string $prompt
+     * @return string|false
+     */
+    private function save_imagen_to_media($image_data, $prompt) {
+        require_once(ABSPATH . 'wp-admin/includes/file.php');
+        require_once(ABSPATH . 'wp-admin/includes/media.php');
+        require_once(ABSPATH . 'wp-admin/includes/image.php');
+
+        $upload_dir = wp_upload_dir();
+        $filename = 'imagen4-' . sanitize_title(substr($prompt, 0, 50)) . '-' . time() . '.png';
+        $filepath = $upload_dir['path'] . '/' . $filename;
+
+        file_put_contents($filepath, $image_data);
+
+        $attachment = array(
+            'guid' => $upload_dir['url'] . '/' . $filename,
+            'post_mime_type' => 'image/png',
+            'post_title' => 'Imagen 4: ' . substr($prompt, 0, 100),
+            'post_content' => '',
+            'post_status' => 'inherit'
+        );
+
+        $attach_id = wp_insert_attachment($attachment, $filepath);
+        $attach_data = wp_generate_attachment_metadata($attach_id, $filepath);
+        wp_update_attachment_metadata($attach_id, $attach_data);
+
+        return wp_get_attachment_url($attach_id);
+    }
+
+    /**
+     * Save Veo 3 video to WordPress media library
+     *
+     * @param string $video_data
+     * @param string $prompt
+     * @return string|false
+     */
+    private function save_video_to_media($video_data, $prompt) {
+        require_once(ABSPATH . 'wp-admin/includes/file.php');
+        require_once(ABSPATH . 'wp-admin/includes/media.php');
+
+        $upload_dir = wp_upload_dir();
+        $filename = 'veo3-' . sanitize_title(substr($prompt, 0, 50)) . '-' . time() . '.mp4';
+        $filepath = $upload_dir['path'] . '/' . $filename;
+
+        file_put_contents($filepath, $video_data);
+
+        $attachment = array(
+            'guid' => $upload_dir['url'] . '/' . $filename,
+            'post_mime_type' => 'video/mp4',
+            'post_title' => 'Veo 3: ' . substr($prompt, 0, 100),
+            'post_content' => '',
+            'post_status' => 'inherit'
+        );
+
+        $attach_id = wp_insert_attachment($attachment, $filepath);
+
+        return wp_get_attachment_url($attach_id);
     }
 
     /**

@@ -34,6 +34,15 @@ class Kontent_Fire {
         $this->define_admin_hooks();
         $this->define_public_hooks();
         $this->setup_cron_jobs();
+        $this->init_blog_promoter();
+    }
+
+    /**
+     * Initialize blog promoter for automatic social media promotion
+     */
+    private function init_blog_promoter() {
+        // Auto-promote blogs when published
+        $blog_promoter = new Kontent_Fire_Blog_Promoter();
     }
 
     /**
@@ -54,6 +63,7 @@ class Kontent_Fire {
         // Content generation
         require_once KONTENT_FIRE_PLUGIN_DIR . 'includes/content-generation/class-kontent-fire-content-generator.php';
         require_once KONTENT_FIRE_PLUGIN_DIR . 'includes/content-generation/class-kontent-fire-ai-engine.php';
+        require_once KONTENT_FIRE_PLUGIN_DIR . 'includes/content-generation/class-kontent-fire-blog-promoter.php';
 
         // SEO
         require_once KONTENT_FIRE_PLUGIN_DIR . 'includes/seo/class-kontent-fire-seo-analyzer.php';

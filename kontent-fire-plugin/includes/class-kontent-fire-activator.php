@@ -183,10 +183,16 @@ class Kontent_Fire_Activator {
             'kontent_fire_claude_api_key' => '',
             'kontent_fire_openai_api_key' => '',
             'kontent_fire_gemini_api_key' => '',
+            'kontent_fire_google_project_id' => '',
             'kontent_fire_default_tone' => 'professional',
             'kontent_fire_auto_post' => 'no',
             'kontent_fire_seo_enabled' => 'yes',
             'kontent_fire_analytics_enabled' => 'yes',
+            'kontent_fire_auto_promote_blogs' => 'yes',
+            'kontent_fire_auto_promo_platforms' => json_encode(array('facebook', 'twitter', 'linkedin')),
+            'kontent_fire_promo_delay_hours' => '2',
+            'kontent_fire_default_image_api' => 'gemini',  // Imagen 4 by default
+            'kontent_fire_default_video_api' => 'veo3',    // Veo 3 by default
         );
 
         foreach ($defaults as $key => $value) {
