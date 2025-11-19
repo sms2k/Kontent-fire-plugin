@@ -193,6 +193,15 @@ class Kontent_Fire_Activator {
             'kontent_fire_promo_delay_hours' => '2',
             'kontent_fire_default_image_api' => 'gemini',  // Imagen 4 by default
             'kontent_fire_default_video_api' => 'veo3',    // Veo 3 by default
+
+            // Auto-blogging settings
+            'kontent_fire_auto_blog_enabled' => 'no',
+            'kontent_fire_auto_blog_frequency' => 'weekly',
+            'kontent_fire_auto_blog_status' => 'publish',  // publish or draft
+            'kontent_fire_business_info' => '',
+            'kontent_fire_industry' => '',
+            'kontent_fire_target_zip_codes' => '',  // Comma-separated zip codes for local SEO
+            'kontent_fire_blog_images_per_post' => '3',
         );
 
         foreach ($defaults as $key => $value) {

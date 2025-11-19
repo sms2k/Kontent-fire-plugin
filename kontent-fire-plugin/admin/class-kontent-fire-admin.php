@@ -50,6 +50,7 @@ class Kontent_Fire_Admin {
         );
 
         add_submenu_page('kontent-fire', 'Dashboard', 'Dashboard', 'manage_options', 'kontent-fire', array($this, 'display_dashboard'));
+        add_submenu_page('kontent-fire', 'Auto-Blog Generator', '🔥 Auto-Blog', 'manage_options', 'kontent-fire-auto-blog', array($this, 'display_auto_blog'));
         add_submenu_page('kontent-fire', 'Content Generator', 'Generate Content', 'manage_options', 'kontent-fire-generate', array($this, 'display_generator'));
         add_submenu_page('kontent-fire', 'Schedule Posts', 'Schedule', 'manage_options', 'kontent-fire-schedule', array($this, 'display_scheduler'));
         add_submenu_page('kontent-fire', 'Media Studio', 'Media Studio', 'manage_options', 'kontent-fire-media', array($this, 'display_media_studio'));
@@ -68,6 +69,15 @@ class Kontent_Fire_Admin {
         register_setting('kontent_fire_settings', 'kontent_fire_gemini_api_key');
         register_setting('kontent_fire_settings', 'kontent_fire_default_tone');
         register_setting('kontent_fire_settings', 'kontent_fire_auto_post');
+
+        // Auto-blog settings
+        register_setting('kontent_fire_auto_blog', 'kontent_fire_auto_blog_enabled');
+        register_setting('kontent_fire_auto_blog', 'kontent_fire_business_info');
+        register_setting('kontent_fire_auto_blog', 'kontent_fire_industry');
+        register_setting('kontent_fire_auto_blog', 'kontent_fire_target_zip_codes');
+        register_setting('kontent_fire_auto_blog', 'kontent_fire_auto_blog_frequency');
+        register_setting('kontent_fire_auto_blog', 'kontent_fire_auto_blog_status');
+        register_setting('kontent_fire_auto_blog', 'kontent_fire_blog_images_per_post');
     }
 
     /**
@@ -125,6 +135,13 @@ class Kontent_Fire_Admin {
      */
     public function display_settings() {
         include KONTENT_FIRE_PLUGIN_DIR . 'admin/partials/settings.php';
+    }
+
+    /**
+     * Display auto-blog generator
+     */
+    public function display_auto_blog() {
+        include KONTENT_FIRE_PLUGIN_DIR . 'admin/partials/auto-blog.php';
     }
 
     /**
@@ -246,6 +263,25 @@ class Kontent_Fire_Admin {
         );
 
         $result = $video_generator->generate_script($topic, $options);
+
+        wp_send_json($result);
+    }
+
+    /**
+     * AJAX: Generate auto-blog
+     */
+    public function ajax_generate_auto_blog() {
+        check_ajax_referer('kontent_fire_nonce', 'nonce');
+
+        $auto_blogger = new Kontent_Fire_Auto_Blogger();
+        $topic = sanitize_text_field($_POST['topic'] ?? '');
+
+        $options = array();
+        if (!empty($topic)) {
+            $options['topic'] = $topic;
+        }
+
+        $result = $auto_blogger->generate_manual($options);
 
         wp_send_json($result);
     }

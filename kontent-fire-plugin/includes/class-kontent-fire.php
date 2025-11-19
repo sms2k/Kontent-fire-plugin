@@ -43,6 +43,15 @@ class Kontent_Fire {
     private function init_blog_promoter() {
         // Auto-promote blogs when published
         $blog_promoter = new Kontent_Fire_Blog_Promoter();
+
+        // Initialize auto-blogger
+        $auto_blogger = new Kontent_Fire_Auto_Blogger();
+
+        // Schedule automatic blog generation if enabled
+        if (get_option('kontent_fire_auto_blog_enabled', 'no') === 'yes') {
+            $frequency = get_option('kontent_fire_auto_blog_frequency', 'weekly');
+            $auto_blogger->schedule_auto_generation($frequency);
+        }
     }
 
     /**
@@ -64,6 +73,7 @@ class Kontent_Fire {
         require_once KONTENT_FIRE_PLUGIN_DIR . 'includes/content-generation/class-kontent-fire-content-generator.php';
         require_once KONTENT_FIRE_PLUGIN_DIR . 'includes/content-generation/class-kontent-fire-ai-engine.php';
         require_once KONTENT_FIRE_PLUGIN_DIR . 'includes/content-generation/class-kontent-fire-blog-promoter.php';
+        require_once KONTENT_FIRE_PLUGIN_DIR . 'includes/content-generation/class-kontent-fire-auto-blogger.php';
 
         // SEO
         require_once KONTENT_FIRE_PLUGIN_DIR . 'includes/seo/class-kontent-fire-seo-analyzer.php';
@@ -118,6 +128,7 @@ class Kontent_Fire {
         $this->loader->add_action('wp_ajax_kf_analyze_seo', $plugin_admin, 'ajax_analyze_seo');
         $this->loader->add_action('wp_ajax_kf_generate_image', $plugin_admin, 'ajax_generate_image');
         $this->loader->add_action('wp_ajax_kf_generate_video', $plugin_admin, 'ajax_generate_video');
+        $this->loader->add_action('wp_ajax_kf_generate_auto_blog', $plugin_admin, 'ajax_generate_auto_blog');
     }
 
     /**
