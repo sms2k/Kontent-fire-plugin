@@ -424,16 +424,42 @@ FORMAT AS JSON:
             if (($index === 0 || $index === 2) && isset($images[$image_index])) {
                 $attachment_id = attachment_url_to_postid($images[$image_index]);
                 if ($attachment_id) {
-                    // Use WordPress image with proper attributes for page builder compatibility
-                    $content .= "\n" . wp_get_attachment_image($attachment_id, 'large', false, array(
+                    // Get image dimensions for better CLS (Cumulative Layout Shift)
+                    $image_meta = wp_get_attachment_metadata($attachment_id);
+
+                    // Performance-optimized image attributes
+                    $image_attrs = array(
                         'class' => 'aligncenter wp-image-' . $attachment_id,
                         'alt' => esc_attr($section['heading']),
-                        'loading' => 'lazy'
-                    )) . "\n";
+                        'loading' => ($image_index === 0) ? 'eager' : 'lazy', // First image loads immediately
+                        'decoding' => 'async', // Async decoding for better performance
+                    );
+
+                    // Add fetchpriority for first image (LCP optimization)
+                    if ($image_index === 0) {
+                        $image_attrs['fetchpriority'] = 'high';
+                    }
+
+                    // Add explicit width/height if available (prevents layout shift)
+                    if (!empty($image_meta['width']) && !empty($image_meta['height'])) {
+                        $image_attrs['width'] = $image_meta['width'];
+                        $image_attrs['height'] = $image_meta['height'];
+                    }
+
+                    // Use WordPress image with optimized attributes
+                    $content .= "\n" . wp_get_attachment_image($attachment_id, 'large', false, $image_attrs) . "\n";
                 } else {
-                    // Fallback to img tag with proper attributes
+                    // Fallback to img tag with performance attributes
                     $content .= "\n" . '<figure class="wp-block-image aligncenter size-large">';
-                    $content .= '<img src="' . esc_url($images[$image_index]) . '" alt="' . esc_attr($section['heading']) . '" class="wp-image" loading="lazy" />';
+                    $content .= '<img src="' . esc_url($images[$image_index]) . '" ';
+                    $content .= 'alt="' . esc_attr($section['heading']) . '" ';
+                    $content .= 'class="wp-image" ';
+                    $content .= 'loading="' . (($image_index === 0) ? 'eager' : 'lazy') . '" ';
+                    $content .= 'decoding="async" ';
+                    if ($image_index === 0) {
+                        $content .= 'fetchpriority="high" ';
+                    }
+                    $content .= '/>';
                     $content .= '</figure>' . "\n";
                 }
                 $image_index++;

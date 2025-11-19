@@ -184,7 +184,7 @@ class Kontent_Fire_OpenAI_API {
     }
 
     /**
-     * Download and save image to WordPress media library
+     * Download and save image to WordPress media library (optimized as WebP)
      *
      * @param string $url
      * @return string|false
@@ -200,10 +200,25 @@ class Kontent_Fire_OpenAI_API {
             return false;
         }
 
-        $file_array = array(
-            'name' => 'kontent-fire-' . time() . '.png',
-            'tmp_name' => $tmp
-        );
+        // Convert to WebP for performance
+        $webp_result = $this->convert_to_webp($tmp);
+
+        if ($webp_result) {
+            // Use WebP version
+            $file_array = array(
+                'name' => 'kontent-fire-' . time() . '.webp',
+                'tmp_name' => $webp_result
+            );
+
+            // Delete original temp file
+            @unlink($tmp);
+        } else {
+            // Fallback to original format
+            $file_array = array(
+                'name' => 'kontent-fire-' . time() . '.png',
+                'tmp_name' => $tmp
+            );
+        }
 
         $id = media_handle_sideload($file_array, 0);
 
@@ -213,6 +228,85 @@ class Kontent_Fire_OpenAI_API {
         }
 
         return wp_get_attachment_url($id);
+    }
+
+    /**
+     * Convert image to WebP format for performance
+     *
+     * @param string $source_path Source image path
+     * @return string|false WebP file path or false on failure
+     */
+    private function convert_to_webp($source_path) {
+        // Check if WebP is supported
+        if (!function_exists('imagewebp') && !extension_loaded('imagick')) {
+            return false;
+        }
+
+        $upload_dir = wp_upload_dir();
+        $output_path = $upload_dir['path'] . '/kf-webp-' . time() . '.webp';
+
+        // Detect image type
+        $image_info = @getimagesize($source_path);
+        if ($image_info === false) {
+            return false;
+        }
+
+        // Try GD first (faster)
+        if (function_exists('imagewebp')) {
+            $image = false;
+
+            switch ($image_info[2]) {
+                case IMAGETYPE_JPEG:
+                    $image = @imagecreatefromjpeg($source_path);
+                    break;
+                case IMAGETYPE_PNG:
+                    $image = @imagecreatefrompng($source_path);
+                    break;
+                case IMAGETYPE_GIF:
+                    $image = @imagecreatefromgif($source_path);
+                    break;
+                case IMAGETYPE_WEBP:
+                    // Already WebP
+                    return $source_path;
+            }
+
+            if ($image !== false) {
+                // Preserve transparency for PNG/GIF
+                if ($image_info[2] === IMAGETYPE_PNG || $image_info[2] === IMAGETYPE_GIF) {
+                    imagepalettetotruecolor($image);
+                    imagealphablending($image, true);
+                    imagesavealpha($image, true);
+                }
+
+                // Convert to WebP with 85% quality
+                $success = imagewebp($image, $output_path, 85);
+                imagedestroy($image);
+
+                if ($success) {
+                    return $output_path;
+                }
+            }
+        }
+
+        // Try Imagick as fallback
+        if (extension_loaded('imagick')) {
+            try {
+                $imagick = new Imagick($source_path);
+                $imagick->setImageFormat('webp');
+                $imagick->setImageCompressionQuality(85);
+                $imagick->stripImage(); // Remove metadata for smaller file size
+                $imagick->writeImage($output_path);
+                $imagick->clear();
+                $imagick->destroy();
+
+                return $output_path;
+            } catch (Exception $e) {
+                error_log('Kontent Fire: WebP conversion failed - ' . $e->getMessage());
+                return false;
+            }
+        }
+
+        return false;
     }
 
     /**

@@ -404,7 +404,7 @@ class Kontent_Fire_Gemini_API {
     }
 
     /**
-     * Save Imagen image to WordPress media library
+     * Save Imagen image to WordPress media library (optimized as WebP)
      *
      * @param string $image_data
      * @param string $prompt
@@ -416,14 +416,33 @@ class Kontent_Fire_Gemini_API {
         require_once(ABSPATH . 'wp-admin/includes/image.php');
 
         $upload_dir = wp_upload_dir();
-        $filename = 'imagen4-' . sanitize_title(substr($prompt, 0, 50)) . '-' . time() . '.png';
-        $filepath = $upload_dir['path'] . '/' . $filename;
 
-        file_put_contents($filepath, $image_data);
+        // First save as PNG temporarily
+        $temp_filename = 'imagen4-temp-' . time() . '.png';
+        $temp_filepath = $upload_dir['path'] . '/' . $temp_filename;
+        file_put_contents($temp_filepath, $image_data);
+
+        // Convert to WebP for performance optimization
+        $webp_result = $this->convert_to_webp($temp_filepath, $prompt);
+
+        // Delete temporary PNG
+        @unlink($temp_filepath);
+
+        if (!$webp_result) {
+            // Fallback to PNG if WebP conversion fails
+            $filename = 'imagen4-' . sanitize_title(substr($prompt, 0, 50)) . '-' . time() . '.png';
+            $filepath = $upload_dir['path'] . '/' . $filename;
+            file_put_contents($filepath, $image_data);
+            $mime_type = 'image/png';
+        } else {
+            $filepath = $webp_result['filepath'];
+            $filename = $webp_result['filename'];
+            $mime_type = 'image/webp';
+        }
 
         $attachment = array(
             'guid' => $upload_dir['url'] . '/' . $filename,
-            'post_mime_type' => 'image/png',
+            'post_mime_type' => $mime_type,
             'post_title' => 'Imagen 4: ' . substr($prompt, 0, 100),
             'post_content' => '',
             'post_status' => 'inherit'
@@ -434,6 +453,70 @@ class Kontent_Fire_Gemini_API {
         wp_update_attachment_metadata($attach_id, $attach_data);
 
         return wp_get_attachment_url($attach_id);
+    }
+
+    /**
+     * Convert image to WebP format for performance
+     *
+     * @param string $source_path Source image path
+     * @param string $prompt Image prompt for naming
+     * @return array|false Array with filepath and filename, or false on failure
+     */
+    private function convert_to_webp($source_path, $prompt) {
+        // Check if GD or Imagick supports WebP
+        if (!function_exists('imagewebp') && !extension_loaded('imagick')) {
+            return false;
+        }
+
+        $upload_dir = wp_upload_dir();
+        $filename = 'imagen4-' . sanitize_title(substr($prompt, 0, 50)) . '-' . time() . '.webp';
+        $output_path = $upload_dir['path'] . '/' . $filename;
+
+        // Try GD first (faster)
+        if (function_exists('imagewebp') && function_exists('imagecreatefrompng')) {
+            $image = @imagecreatefrompng($source_path);
+
+            if ($image !== false) {
+                // Enable alpha channel for transparency
+                imagepalettetotruecolor($image);
+                imagealphablending($image, true);
+                imagesavealpha($image, true);
+
+                // Convert to WebP with 85% quality (good balance)
+                $success = imagewebp($image, $output_path, 85);
+                imagedestroy($image);
+
+                if ($success) {
+                    return array(
+                        'filepath' => $output_path,
+                        'filename' => $filename
+                    );
+                }
+            }
+        }
+
+        // Try Imagick as fallback
+        if (extension_loaded('imagick')) {
+            try {
+                $imagick = new Imagick($source_path);
+                $imagick->setImageFormat('webp');
+                $imagick->setImageCompressionQuality(85);
+                $imagick->stripImage(); // Remove metadata for smaller file size
+                $imagick->writeImage($output_path);
+                $imagick->clear();
+                $imagick->destroy();
+
+                return array(
+                    'filepath' => $output_path,
+                    'filename' => $filename
+                );
+            } catch (Exception $e) {
+                error_log('Kontent Fire: WebP conversion failed - ' . $e->getMessage());
+                return false;
+            }
+        }
+
+        return false;
     }
 
     /**
