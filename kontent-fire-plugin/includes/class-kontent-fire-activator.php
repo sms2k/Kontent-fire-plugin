@@ -198,6 +198,7 @@ class Kontent_Fire_Activator {
             'kontent_fire_auto_blog_enabled' => 'no',
             'kontent_fire_auto_blog_frequency' => 'weekly',
             'kontent_fire_auto_blog_status' => 'publish',  // publish or draft
+            'kontent_fire_auto_blog_length' => 'long',  // short (800-1500) or long (1500-2500)
             'kontent_fire_business_info' => '',
             'kontent_fire_industry' => '',
             'kontent_fire_target_zip_codes' => '',  // Comma-separated zip codes for local SEO

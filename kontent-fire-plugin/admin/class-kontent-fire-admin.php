@@ -77,6 +77,7 @@ class Kontent_Fire_Admin {
         register_setting('kontent_fire_auto_blog', 'kontent_fire_target_zip_codes');
         register_setting('kontent_fire_auto_blog', 'kontent_fire_auto_blog_frequency');
         register_setting('kontent_fire_auto_blog', 'kontent_fire_auto_blog_status');
+        register_setting('kontent_fire_auto_blog', 'kontent_fire_auto_blog_length');
         register_setting('kontent_fire_auto_blog', 'kontent_fire_blog_images_per_post');
     }
 

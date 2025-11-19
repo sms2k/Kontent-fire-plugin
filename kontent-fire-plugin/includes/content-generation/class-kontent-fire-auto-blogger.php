@@ -286,6 +286,9 @@ Format as JSON:
      * @return array
      */
     private function create_seo_blog($topic, $primary_keywords, $lsi_keywords, $long_tail_keywords, $local_data, $business_info, $industry) {
+        // Get blog length preference
+        $blog_length = get_option('kontent_fire_auto_blog_length', 'long');
+        $word_count = ($blog_length === 'short') ? '800-1500 words' : '1500-2500 words';
         $local_context = '';
         if ($local_data) {
             $local_context = "
@@ -324,7 +327,7 @@ LONG-TAIL KEYWORDS (use in subheadings and naturally):
 {$local_context}
 
 REQUIREMENTS:
-✅ 1500-2000 words (comprehensive, valuable)
+✅ {$word_count} (comprehensive, valuable)
 ✅ Engaging, conversational tone
 ✅ Perfect keyword placement (natural, not stuffed)
 ✅ Use ALL primary keywords at least 2-3 times

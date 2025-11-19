@@ -117,6 +117,19 @@ if (!defined('WPINC')) {
 
                     <tr>
                         <th scope="row">
+                            <label for="kontent_fire_auto_blog_length">Blog Length</label>
+                        </th>
+                        <td>
+                            <select id="kontent_fire_auto_blog_length" name="kontent_fire_auto_blog_length">
+                                <option value="short" <?php selected(get_option('kontent_fire_auto_blog_length'), 'short'); ?>>Short Form (800-1500 words)</option>
+                                <option value="long" <?php selected(get_option('kontent_fire_auto_blog_length'), 'long'); ?>>Long Form (1500-2500 words)</option>
+                            </select>
+                            <p class="description">Target word count for generated blogs</p>
+                        </td>
+                    </tr>
+
+                    <tr>
+                        <th scope="row">
                             <label for="kontent_fire_blog_images_per_post">Images Per Blog</label>
                         </th>
                         <td>
@@ -178,7 +191,7 @@ if (!defined('WPINC')) {
                 <li><strong>Topic Research</strong> - AI analyzes your business/industry and finds trending, high-value topics</li>
                 <li><strong>LSI Keyword Research</strong> - Deep keyword analysis with 15-20 LSI keywords, long-tail phrases, and related entities</li>
                 <li><strong>Local Research</strong> (if zip codes provided) - Finds neighborhoods, business parks, shopping centers, landmarks</li>
-                <li><strong>Content Creation</strong> - Claude writes 1500-2000 word SEO-optimized blog with:
+                <li><strong>Content Creation</strong> - Claude writes SEO-optimized blog (short: 800-1500 words, long: 1500-2500 words) with:
                     <ul>
                         <li>Natural keyword integration (no stuffing)</li>
                         <li>Local mentions (if applicable)</li>
@@ -211,7 +224,7 @@ if (!defined('WPINC')) {
 
             <h3>✨ What You Get:</h3>
             <ul style="line-height: 2;">
-                <li>✅ 1500-2000 word SEO-optimized blog</li>
+                <li>✅ SEO-optimized blog (your choice: 800-1500 or 1500-2500 words)</li>
                 <li>✅ 2-3 professional Imagen 4 images</li>
                 <li>✅ Perfect keyword density and placement</li>
                 <li>✅ Local targeting (if zip codes provided)</li>
