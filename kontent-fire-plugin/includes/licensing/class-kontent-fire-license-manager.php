@@ -21,6 +21,16 @@ class Kontent_Fire_License_Manager {
     private $product_id = 'kontent-fire';
 
     /**
+     * Test/Demo license keys (for development and testing only)
+     */
+    private $test_keys = array(
+        'TEST-FULL-ACCESS-2024' => 'enterprise',
+        'TEST-PRO-LICENSE-2024' => 'pro',
+        'TEST-BASIC-LICENSE-2024' => 'basic',
+        'DEMO-LICENSE-KEY' => 'pro'
+    );
+
+    /**
      * Validate license key
      *
      * @param string $license_key
@@ -32,6 +42,11 @@ class Kontent_Fire_License_Manager {
                 'valid' => false,
                 'message' => 'License key is required.'
             );
+        }
+
+        // Check if it's a test license key
+        if ($this->is_test_key($license_key)) {
+            return $this->activate_test_license($license_key);
         }
 
         // Check local database first
@@ -319,5 +334,45 @@ class Kontent_Fire_License_Manager {
         ));
 
         return $license_key;
+    }
+
+    /**
+     * Check if license key is a test key
+     *
+     * @param string $license_key
+     * @return bool
+     */
+    private function is_test_key($license_key) {
+        return array_key_exists($license_key, $this->test_keys);
+    }
+
+    /**
+     * Activate test license (no server validation)
+     *
+     * @param string $license_key
+     * @return array
+     */
+    private function activate_test_license($license_key) {
+        $plan_type = $this->test_keys[$license_key];
+
+        // Store test license data
+        $test_data = array(
+            'plan_type' => $plan_type,
+            'status' => 'active',
+            'max_activations' => 999,
+            'expires_at' => date('Y-m-d H:i:s', strtotime('+10 years')) // Effectively unlimited
+        );
+
+        $this->store_license_locally($license_key, $test_data);
+        update_option('kontent_fire_license_key', $license_key);
+        update_option('kontent_fire_license_status', 'active');
+        update_option('kontent_fire_last_license_check', time());
+        update_option('kf_test_mode', true);
+
+        return array(
+            'valid' => true,
+            'message' => 'Test license activated successfully! (Development Mode)',
+            'data' => $test_data
+        );
     }
 }
