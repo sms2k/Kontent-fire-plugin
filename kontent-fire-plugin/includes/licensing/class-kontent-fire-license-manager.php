@@ -273,6 +273,11 @@ class Kontent_Fire_License_Manager {
      * @return bool
      */
     public function has_feature($feature) {
+        // Test mode grants all features
+        if (get_option('kf_test_mode', false)) {
+            return true;
+        }
+
         if (!$this->is_license_active()) {
             return false;
         }
