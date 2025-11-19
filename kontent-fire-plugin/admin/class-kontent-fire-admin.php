@@ -286,4 +286,48 @@ class Kontent_Fire_Admin {
 
         wp_send_json($result);
     }
+
+    /**
+     * AJAX: Get OAuth URL for platform connection
+     */
+    public function ajax_get_oauth_url() {
+        check_ajax_referer('kontent_fire_nonce', 'nonce');
+
+        $platform = sanitize_text_field($_POST['platform'] ?? '');
+
+        if (empty($platform)) {
+            wp_send_json_error(array('message' => 'Platform not specified'));
+        }
+
+        $oauth_manager = new Kontent_Fire_OAuth_Manager();
+        $oauth_url = $oauth_manager->get_oauth_url($platform);
+
+        if ($oauth_url) {
+            wp_send_json_success(array('oauth_url' => $oauth_url));
+        } else {
+            wp_send_json_error(array('message' => 'Failed to generate OAuth URL. Please check your license key.'));
+        }
+    }
+
+    /**
+     * AJAX: Disconnect platform
+     */
+    public function ajax_disconnect_platform() {
+        check_ajax_referer('kontent_fire_nonce', 'nonce');
+
+        $platform = sanitize_text_field($_POST['platform'] ?? '');
+
+        if (empty($platform)) {
+            wp_send_json_error('Platform not specified');
+        }
+
+        $oauth_manager = new Kontent_Fire_OAuth_Manager();
+        $result = $oauth_manager->disconnect_platform($platform);
+
+        if ($result) {
+            wp_send_json_success();
+        } else {
+            wp_send_json_error('Failed to disconnect platform');
+        }
+    }
 }

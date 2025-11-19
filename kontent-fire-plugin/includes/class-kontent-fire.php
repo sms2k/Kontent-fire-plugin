@@ -82,8 +82,13 @@ class Kontent_Fire {
 
         // Licensing
         require_once KONTENT_FIRE_PLUGIN_DIR . 'includes/licensing/class-kontent-fire-license-manager.php';
+        require_once KONTENT_FIRE_PLUGIN_DIR . 'includes/licensing/class-kontent-fire-credit-manager.php';
+
+        // OAuth
+        require_once KONTENT_FIRE_PLUGIN_DIR . 'includes/class-kontent-fire-oauth-manager.php';
 
         // API integrations
+        require_once KONTENT_FIRE_PLUGIN_DIR . 'includes/api/class-kontent-fire-api-proxy.php';
         require_once KONTENT_FIRE_PLUGIN_DIR . 'includes/api/class-kontent-fire-claude-api.php';
         require_once KONTENT_FIRE_PLUGIN_DIR . 'includes/api/class-kontent-fire-openai-api.php';
         require_once KONTENT_FIRE_PLUGIN_DIR . 'includes/api/class-kontent-fire-gemini-api.php';
@@ -148,6 +153,8 @@ class Kontent_Fire {
         $this->loader->add_action('wp_ajax_kf_generate_image', $plugin_admin, 'ajax_generate_image');
         $this->loader->add_action('wp_ajax_kf_generate_video', $plugin_admin, 'ajax_generate_video');
         $this->loader->add_action('wp_ajax_kf_generate_auto_blog', $plugin_admin, 'ajax_generate_auto_blog');
+        $this->loader->add_action('wp_ajax_kf_get_oauth_url', $plugin_admin, 'ajax_get_oauth_url');
+        $this->loader->add_action('wp_ajax_kf_disconnect_platform', $plugin_admin, 'ajax_disconnect_platform');
     }
 
     /**
@@ -182,6 +189,19 @@ class Kontent_Fire {
 
         // Add custom cron intervals
         add_filter('cron_schedules', array($this, 'custom_cron_intervals'));
+
+        // Register cron action hooks
+        add_action('kontent_fire_refresh_tokens', array($this, 'refresh_oauth_tokens'));
+    }
+
+    /**
+     * Refresh OAuth tokens for connected platforms
+     */
+    public function refresh_oauth_tokens() {
+        if (class_exists('Kontent_Fire_OAuth_Manager')) {
+            $oauth_manager = new Kontent_Fire_OAuth_Manager();
+            $oauth_manager->refresh_expired_tokens();
+        }
     }
 
     /**
