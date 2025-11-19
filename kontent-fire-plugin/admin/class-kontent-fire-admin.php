@@ -284,7 +284,18 @@ class Kontent_Fire_Admin {
 
         $result = $auto_blogger->generate_manual($options);
 
-        wp_send_json($result);
+        if ($result['success']) {
+            wp_send_json_success(array(
+                'post_id' => $result['post_id'],
+                'title' => $result['title'],
+                'topic' => $result['topic'],
+                'keywords' => $result['keywords'],
+                'images_count' => $result['images_count'],
+                'local_targeting' => $result['local_targeting']
+            ));
+        } else {
+            wp_send_json_error(array('message' => $result['message'] ?? 'Failed to generate blog'));
+        }
     }
 
     /**
