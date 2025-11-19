@@ -55,6 +55,57 @@ Kontent Fire is a comprehensive WordPress plugin that automates content creation
 
 ---
 
+## 🔧 Plugin Compatibility
+
+### ✅ Page Builder Compatible
+
+Kontent Fire generates **clean, semantic HTML** that works seamlessly with all major WordPress page builders:
+
+- **Elementor** - Full visual editing support
+- **Divi Builder** - Compatible with Visual Builder and Classic Editor
+- **Beaver Builder** - Standard content editing
+- **WPBakery** - All modules supported
+- **Gutenberg** - Native WordPress block editor
+- **Oxygen Builder** - Clean HTML structure
+- **Bricks Builder** - Fully compatible
+- **Thrive Architect** - All content types
+
+**Key Benefits:**
+- ✅ No proprietary shortcodes or markup
+- ✅ Edit auto-generated blogs with any page builder
+- ✅ Clean code that page builders can parse
+- ✅ Standard WordPress content structure
+- ✅ Developer hooks and filters for customization
+
+### ✅ SEO Plugin Integration
+
+Automatically integrates with popular SEO plugins:
+
+- **Yoast SEO** - Auto-populates meta title, description, focus keyword
+- **Rank Math** - Full metadata integration
+- **All in One SEO** - Automatic SEO field population
+- **SEOPress** - Complete compatibility
+- **The SEO Framework** - Works seamlessly
+
+### Developer-Friendly
+
+```php
+// Modify content before saving
+add_filter('kontent_fire_auto_blog_content', function($content, $blog_data, $images) {
+    // Your customization here
+    return $content;
+}, 10, 3);
+
+// Hook after blog creation
+add_action('kontent_fire_auto_blog_created', function($post_id, $blog_data) {
+    // Your code here
+}, 10, 2);
+```
+
+See `COMPATIBILITY.md` and `examples/page-builder-integration.php` for detailed integration guides.
+
+---
+
 ## 📋 Requirements
 
 - **WordPress**: 5.8 or higher

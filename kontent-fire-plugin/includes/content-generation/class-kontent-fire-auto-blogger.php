@@ -400,7 +400,7 @@ FORMAT AS JSON:
     }
 
     /**
-     * Create WordPress post
+     * Create WordPress post with page builder compatibility
      *
      * @param array $blog_data
      * @param array $images
@@ -408,38 +408,63 @@ FORMAT AS JSON:
      * @return int|false
      */
     private function create_wordpress_post($blog_data, $images, $keywords) {
-        // Build full content
-        $content = '<p>' . $blog_data['introduction'] . '</p>';
+        // Build clean, semantic HTML content compatible with all page builders
+        $content = '';
+
+        // Introduction paragraph
+        $content .= wpautop($blog_data['introduction']);
 
         $image_index = 0;
         foreach ($blog_data['sections'] as $index => $section) {
-            $content .= '<h2>' . $section['heading'] . '</h2>';
-            $content .= '<p>' . $section['content'] . '</p>';
+            // Use semantic HTML with proper spacing
+            $content .= "\n" . '<h2>' . esc_html($section['heading']) . '</h2>' . "\n";
+            $content .= wpautop($section['content']);
 
-            // Insert image after first and third sections
+            // Insert images strategically (after first and third sections)
             if (($index === 0 || $index === 2) && isset($images[$image_index])) {
-                $content .= '<img src="' . esc_url($images[$image_index]) . '" alt="' . esc_attr($section['heading']) . '" class="aligncenter" />';
+                $attachment_id = attachment_url_to_postid($images[$image_index]);
+                if ($attachment_id) {
+                    // Use WordPress image with proper attributes for page builder compatibility
+                    $content .= "\n" . wp_get_attachment_image($attachment_id, 'large', false, array(
+                        'class' => 'aligncenter wp-image-' . $attachment_id,
+                        'alt' => esc_attr($section['heading']),
+                        'loading' => 'lazy'
+                    )) . "\n";
+                } else {
+                    // Fallback to img tag with proper attributes
+                    $content .= "\n" . '<figure class="wp-block-image aligncenter size-large">';
+                    $content .= '<img src="' . esc_url($images[$image_index]) . '" alt="' . esc_attr($section['heading']) . '" class="wp-image" loading="lazy" />';
+                    $content .= '</figure>' . "\n";
+                }
                 $image_index++;
             }
         }
 
-        $content .= '<h2>Conclusion</h2>';
-        $content .= '<p>' . $blog_data['conclusion'] . '</p>';
+        // Conclusion section
+        $content .= "\n" . '<h2>Conclusion</h2>' . "\n";
+        $content .= wpautop($blog_data['conclusion']);
 
-        // Create post
+        // Allow other plugins to modify content before saving (for page builder compatibility)
+        $content = apply_filters('kontent_fire_auto_blog_content', $content, $blog_data, $images);
+
+        // Prepare post data
         $post_data = array(
-            'post_title' => $blog_data['title'],
+            'post_title' => sanitize_text_field($blog_data['title']),
             'post_content' => $content,
             'post_status' => get_option('kontent_fire_auto_blog_status', 'publish'),
             'post_type' => 'post',
-            'post_excerpt' => $blog_data['meta_description'],
-            'post_name' => $blog_data['slug'],
-            'tags_input' => $blog_data['tags'],
+            'post_excerpt' => sanitize_text_field($blog_data['meta_description']),
+            'post_name' => sanitize_title($blog_data['slug']),
+            'tags_input' => array_map('sanitize_text_field', $blog_data['tags']),
+            'post_author' => get_current_user_id() ?: 1,
         );
+
+        // Allow filtering of post data before creation
+        $post_data = apply_filters('kontent_fire_auto_blog_post_data', $post_data, $blog_data);
 
         $post_id = wp_insert_post($post_data);
 
-        if ($post_id) {
+        if ($post_id && !is_wp_error($post_id)) {
             // Set featured image
             if (!empty($images[0])) {
                 $attachment_id = attachment_url_to_postid($images[0]);
@@ -448,16 +473,42 @@ FORMAT AS JSON:
                 }
             }
 
-            // Store SEO metadata
-            update_post_meta($post_id, '_kf_focus_keyword', $blog_data['focus_keyword']);
+            // Store Kontent Fire metadata
+            update_post_meta($post_id, '_kf_focus_keyword', sanitize_text_field($blog_data['focus_keyword']));
             update_post_meta($post_id, '_kf_keywords', json_encode($keywords));
             update_post_meta($post_id, '_kf_auto_generated', true);
             update_post_meta($post_id, '_kf_generation_time', current_time('mysql'));
 
-            // Update Yoast/Rank Math meta if available
-            update_post_meta($post_id, '_yoast_wpseo_title', $blog_data['title']);
-            update_post_meta($post_id, '_yoast_wpseo_metadesc', $blog_data['meta_description']);
-            update_post_meta($post_id, '_yoast_wpseo_focuskw', $blog_data['focus_keyword']);
+            // Page builder compatibility flags
+            update_post_meta($post_id, '_kf_page_builder_compatible', 'yes');
+
+            // Elementor compatibility - mark as plain content (editable with Elementor)
+            update_post_meta($post_id, '_elementor_edit_mode', 'builder');
+            update_post_meta($post_id, '_elementor_template_type', 'wp-post');
+
+            // Divi compatibility - use standard editor
+            update_post_meta($post_id, '_et_pb_use_builder', 'off');
+            update_post_meta($post_id, '_et_pb_old_content', $content);
+
+            // SEO plugin compatibility (Yoast, Rank Math, All in One SEO)
+
+            // Yoast SEO
+            update_post_meta($post_id, '_yoast_wpseo_title', sanitize_text_field($blog_data['title']));
+            update_post_meta($post_id, '_yoast_wpseo_metadesc', sanitize_text_field($blog_data['meta_description']));
+            update_post_meta($post_id, '_yoast_wpseo_focuskw', sanitize_text_field($blog_data['focus_keyword']));
+
+            // Rank Math
+            update_post_meta($post_id, 'rank_math_title', sanitize_text_field($blog_data['title']));
+            update_post_meta($post_id, 'rank_math_description', sanitize_text_field($blog_data['meta_description']));
+            update_post_meta($post_id, 'rank_math_focus_keyword', sanitize_text_field($blog_data['focus_keyword']));
+
+            // All in One SEO
+            update_post_meta($post_id, '_aioseo_title', sanitize_text_field($blog_data['title']));
+            update_post_meta($post_id, '_aioseo_description', sanitize_text_field($blog_data['meta_description']));
+            update_post_meta($post_id, '_aioseo_keywords', sanitize_text_field($blog_data['focus_keyword']));
+
+            // Allow other plugins to add their metadata
+            do_action('kontent_fire_auto_blog_created', $post_id, $blog_data, $images, $keywords);
         }
 
         return $post_id;
